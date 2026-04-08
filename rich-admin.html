@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RICH Admin Console</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0c111e;
+      --panel: #111a2c;
+      --panel-2: #0f1729;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #e8eef7;
+      --muted: #9fb2c9;
+      --accent: #59f5b2;
+      --danger: #ff6b6b;
+      --radius: 14px;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 10% 20%, rgba(89, 245, 178, 0.12), transparent 50%),
+                  radial-gradient(circle at 90% 10%, rgba(88, 164, 255, 0.2), transparent 45%),
+                  var(--bg);
+      color: var(--text);
+      font-family: "Segoe UI", system-ui, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      width: min(720px, 96vw);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 24px;
+    }
+
+    .title {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 18px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    label {
+      display: block;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 6px;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--panel-2);
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .btn {
+      background: var(--accent);
+      color: #0c111e;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .status {
+      margin-top: 10px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .hidden { display: none; }
+
+    .token-box {
+      margin-top: 14px;
+      padding: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      background: rgba(15, 23, 41, 0.65);
+      word-break: break-all;
+      font-family: "Consolas", "JetBrains Mono", monospace;
+      font-size: 12px;
+    }
+
+    .lockscreen {
+      margin-bottom: 18px;
+      padding: 16px;
+      border-radius: 12px;
+      border: 1px dashed rgba(89, 245, 178, 0.35);
+      background: rgba(89, 245, 178, 0.08);
+      font-size: 13px;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="title">RICH Admin Console</div>
+    <div class="subtitle">Create time-limited API tokens without exposing your master key.</div>
+
+    <div id="lockscreen" class="lockscreen">
+      Locked. Enter admin credentials to continue.
+    </div>
+
+    <div id="loginPanel">
+      <div class="row">
+        <div>
+          <label for="adminUser">Admin username</label>
+          <input id="adminUser" placeholder="e.g. AMARIE">
+        </div>
+        <div>
+          <label for="adminPass">Password</label>
+          <input id="adminPass" type="password" placeholder="Enter password">
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <div>
+          <label for="adminApiHost">RICH API host</label>
+          <input id="adminApiHost" placeholder="https://xxxx.trycloudflare.com">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="adminLoginBtn" type="button">Unlock</button>
+        <button class="btn btn-secondary" id="adminClearBtn" type="button">Clear</button>
+      </div>
+      <div class="status" id="adminLoginStatus">Waiting for login.</div>
+    </div>
+
+    <div id="tokenPanel" class="hidden">
+      <div class="row">
+        <div>
+          <label for="tokenDuration">Duration</label>
+          <input id="tokenDuration" type="number" min="1" value="60">
+        </div>
+        <div>
+          <label for="tokenUnit">Unit</label>
+          <select id="tokenUnit">
+            <option value="minutes">Minutes</option>
+            <option value="hours">Hours</option>
+            <option value="days">Days</option>
+            <option value="months">Months</option>
+          </select>
+        </div>
+        <div>
+          <label for="tokenLabel">Label (optional)</label>
+          <input id="tokenLabel" placeholder="e.g. Phone access">
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="tokenGenBtn" type="button">Generate token</button>
+        <button class="btn btn-secondary" id="tokenCopyBtn" type="button">Copy token</button>
+        <button class="btn btn-secondary" id="tokenRevokeBtn" type="button">Revoke token</button>
+        <button class="btn btn-secondary" id="tokenRevokeAllBtn" type="button">Revoke all tokens</button>
+      </div>
+      <div class="status" id="tokenStatus">Ready to generate.</div>
+      <div class="status" id="tokenCountdown">Expires in: --</div>
+      <div class="token-box" id="tokenOutput">No token generated yet.</div>
+
+      <hr style="border: none; border-top: 1px solid var(--border); margin: 18px 0;">
+
+      <div class="title" style="font-size:16px">Quick Actions</div>
+      <div class="subtitle">Start or stop RICH and tunnels safely.</div>
+      <div class="btn-row">
+        <button class="btn" id="actionStartServer" type="button">Start server</button>
+        <button class="btn btn-secondary" id="actionStopServer" type="button">Stop server</button>
+        <button class="btn" id="actionStartTunnel" type="button">Start tunnel</button>
+        <button class="btn btn-secondary" id="actionStopAll" type="button">Stop all</button>
+        <button class="btn" id="actionStartMt5" type="button">Start MT5</button>
+        <button class="btn btn-secondary" id="actionStopMt5" type="button">Stop MT5</button>
+        <button class="btn" id="actionStartBacktest" type="button">Start backtest</button>
+        <button class="btn btn-secondary" id="actionStopBacktest" type="button">Stop backtest</button>
+      </div>
+      <div class="status" id="actionStatus">Actions: idle</div>
+
+      <div class="title" style="font-size:16px; margin-top:14px">Action Approvals</div>
+      <div class="subtitle">Enable auto‑execution for approved actions.</div>
+      <div class="row">
+        <div>
+          <label for="approveDuration">Approval duration (minutes)</label>
+          <input id="approveDuration" type="number" min="1" value="15">
+        </div>
+        <div>
+          <label for="approveActions">Approved actions</label>
+          <select id="approveActions" multiple size="4">
+            <option value="start_server" selected>Start server</option>
+            <option value="stop_server" selected>Stop server</option>
+            <option value="start_tunnel" selected>Start tunnel</option>
+            <option value="stop_all" selected>Stop all</option>
+            <option value="start_mt5">Start MT5</option>
+            <option value="stop_mt5">Stop MT5</option>
+            <option value="start_backtest">Start backtest</option>
+            <option value="stop_backtest">Stop backtest</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="approveActionBtn" type="button">Generate action token</button>
+        <button class="btn btn-secondary" id="copyActionTokenBtn" type="button">Copy action token</button>
+      </div>
+      <div class="status" id="approveStatus">Approvals: idle</div>
+      <div class="token-box" id="approveTokenOutput">No action token generated yet.</div>
+
+      <hr style="border: none; border-top: 1px solid var(--border); margin: 18px 0;">
+
+      <div class="title" style="font-size:16px">Learning Settings</div>
+      <div class="subtitle">Control auto-learning on the backend.</div>
+      <div class="row">
+        <div>
+          <label for="settingLearningEnabled">Learning enabled</label>
+          <select id="settingLearningEnabled">
+            <option value="true">On</option>
+            <option value="false">Off</option>
+          </select>
+        </div>
+        <div>
+          <label for="settingLearningAuto">Auto update</label>
+          <select id="settingLearningAuto">
+            <option value="true">On</option>
+            <option value="false">Off</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="saveSettingsBtn" type="button">Save settings</button>
+        <button class="btn btn-secondary" id="refreshStatsBtn" type="button">Refresh learning stats</button>
+      </div>
+      <div class="status" id="settingsStatus">Settings: idle</div>
+      <div class="token-box" id="learningStatsBox">Learning stats will appear here.</div>
+
+      <hr style="border: none; border-top: 1px solid var(--border); margin: 18px 0;">
+
+      <div class="title" style="font-size:16px">Loss Explanation</div>
+      <div class="subtitle">Ask RICH or Twin RICH why a trade lost. Paste the trade log, SHAP values, and any notes.</div>
+      <div class="row">
+        <div>
+          <label for="lossPersona">Persona</label>
+          <select id="lossPersona">
+            <option value="RICH">RICH</option>
+            <option value="Twin RICH">Twin RICH</option>
+          </select>
+        </div>
+        <div>
+          <label for="lossModel">Model (optional)</label>
+          <input id="lossModel" placeholder="Leave blank for server default">
+        </div>
+      </div>
+      <label for="lossTrade" style="margin-top:12px">Trade log / execution JSON</label>
+      <textarea id="lossTrade" rows="6" style="width:100%; margin-top:8px; background: var(--panel-2); border:1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px 12px; font-family: Consolas, monospace;"></textarea>
+      <label for="lossShap" style="margin-top:12px">SHAP values (optional)</label>
+      <textarea id="lossShap" rows="5" style="width:100%; margin-top:8px; background: var(--panel-2); border:1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px 12px; font-family: Consolas, monospace;"></textarea>
+      <label for="lossNotes" style="margin-top:12px">Extra notes (optional)</label>
+      <textarea id="lossNotes" rows="4" style="width:100%; margin-top:8px; background: var(--panel-2); border:1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px 12px; font-family: Consolas, monospace;"></textarea>
+      <div class="btn-row">
+        <button class="btn" id="lossExplainBtn" type="button">Explain loss</button>
+        <button class="btn btn-secondary" id="lossCopyBtn" type="button">Copy explanation</button>
+      </div>
+      <div class="status" id="lossStatus">Ready for analysis.</div>
+      <div class="token-box" id="lossOutput">No explanation yet.</div>
+
+      <hr style="border: none; border-top: 1px solid var(--border); margin: 18px 0;">
+
+      <div class="title" style="font-size:16px">Telegram Bot</div>
+      <div class="subtitle">Connect Telegram for remote commands. Send <code>/auth &lt;api_token&gt;</code> before access.</div>
+      <div class="row">
+        <div>
+          <label for="telegramBotToken">Bot token</label>
+          <input id="telegramBotToken" type="password" placeholder="123456:AA...">
+        </div>
+        <div>
+          <label for="telegramChatIds">Allowed chat IDs (comma separated)</label>
+          <input id="telegramChatIds" placeholder="e.g. 12345678,98765432">
+        </div>
+      </div>
+      <div class="row" style="margin-top:12px">
+        <div>
+          <label for="telegramParseMode">Parse mode</label>
+          <select id="telegramParseMode">
+            <option value="Markdown">Markdown</option>
+            <option value="HTML">HTML</option>
+            <option value="">Plain text</option>
+          </select>
+        </div>
+        <div>
+          <label for="telegramRequireKey">Require API key</label>
+          <select id="telegramRequireKey">
+            <option value="true">Yes</option>
+            <option value="false">No</option>
+          </select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="telegramConnectBtn" type="button">Connect Telegram</button>
+      </div>
+      <div class="status" id="telegramStatus">Telegram: disconnected</div>
+
+      <hr style="border: none; border-top: 1px solid var(--border); margin: 18px 0;">
+
+      <div class="title" style="font-size:16px">File Editor</div>
+      <div class="subtitle">Edit approved files safely.</div>
+      <div class="row">
+        <div>
+          <label for="fileSelect">Select file</label>
+          <select id="fileSelect"></select>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="loadFileBtn" type="button">Load file</button>
+        <button class="btn btn-secondary" id="saveFileBtn" type="button">Save file</button>
+      </div>
+      <div class="status" id="fileStatus">Files: idle</div>
+      <textarea id="fileEditor" rows="12" style="width:100%; margin-top:10px; background: var(--panel-2); border:1px solid var(--border); color: var(--text); border-radius: 10px; padding: 10px 12px; font-family: Consolas, monospace;"></textarea>
+    </div>
+  </div>
+
+  <script>
+    const state = {
+      adminToken: "",
+      apiHost: "",
+      currentToken: "",
+      expiresAtMs: 0,
+      countdownTimer: null
+    };
+
+    function normalizeBase(host) {
+      const cleaned = (host || "").trim();
+      if (!cleaned) return "";
+      if (cleaned.startsWith("http://") || cleaned.startsWith("https://")) return cleaned;
+      return "http://" + cleaned;
+    }
+
+    function setLoginStatus(msg, isError) {
+      const el = document.getElementById("adminLoginStatus");
+      if (!el) return;
+      el.textContent = msg;
+      el.style.color = isError ? "var(--danger)" : "var(--muted)";
+    }
+
+    function setTokenStatus(msg, isError) {
+      const el = document.getElementById("tokenStatus");
+      if (!el) return;
+      el.textContent = msg;
+      el.style.color = isError ? "var(--danger)" : "var(--muted)";
+    }
+
+    function setActionStatus(msg, isError) {
+      const el = document.getElementById("actionStatus");
+      if (!el) return;
+      el.textContent = msg;
+      el.style.color = isError ? "var(--danger)" : "var(--muted)";
+    }
+
+    function setSettingsStatus(msg, isError) {
+      const el = document.getElementById("settingsStatus");
+      if (!el) return;
+      el.textContent = msg;
+      el.style.color = isError ? "var(--danger)" : "var(--muted)";
+    }
+
+    function setApproveStatus(msg, isError) {
+      const el = document.getElementById("approveStatus");
+      if (!el) return;
+      el.textContent = msg;
+      el.style.color = isError ? "var(--danger)" : "var(--muted)";
+    }
+
+    function setFileStatus(msg, isError) {
+      const el = document.getElementById("fileStatus");
+      if (!el) return;
+      el.textContent = msg;
+      el.style.color = isError ? "var(--danger)" : "var(--muted)";
+    }
+
+    function setTelegramStatus(msg, isError) {
+      const el = document.getElementById("telegramStatus");
+      if (!el) return;
+      el.textContent = msg;
+      el.style.color = isError ? "var(--danger)" : "var(--muted)";
+    }
+
+    function setLossStatus(msg, isError) {
+      const el = document.getElementById("lossStatus");
+      if (!el) return;
+      el.textContent = msg;
+      el.style.color = isError ? "var(--danger)" : "var(--muted)";
+    }
+
+    function setCountdown(text) {
+      const el = document.getElementById("tokenCountdown");
+      if (el) el.textContent = text;
+    }
+
+    function formatCountdown(ms) {
+      if (ms <= 0) return "Expired";
+      const totalSec = Math.floor(ms / 1000);
+      const days = Math.floor(totalSec / 86400);
+      const hours = Math.floor((totalSec % 86400) / 3600);
+      const mins = Math.floor((totalSec % 3600) / 60);
+      const secs = totalSec % 60;
+      const parts = [];
+      if (days) parts.push(days + "d");
+      parts.push(String(hours).padStart(2, "0") + "h");
+      parts.push(String(mins).padStart(2, "0") + "m");
+      parts.push(String(secs).padStart(2, "0") + "s");
+      return parts.join(" ");
+    }
+
+    function startCountdown(expiresAtMs) {
+      state.expiresAtMs = expiresAtMs;
+      if (state.countdownTimer) clearInterval(state.countdownTimer);
+      state.countdownTimer = setInterval(() => {
+        const remaining = state.expiresAtMs - Date.now();
+        setCountdown("Expires in: " + formatCountdown(remaining));
+        if (remaining <= 0) {
+          clearInterval(state.countdownTimer);
+          state.countdownTimer = null;
+        }
+      }, 1000);
+      const initial = state.expiresAtMs - Date.now();
+      setCountdown("Expires in: " + formatCountdown(initial));
+    }
+
+    function showTokenPanel() {
+      document.getElementById("tokenPanel").classList.remove("hidden");
+      document.getElementById("loginPanel").classList.add("hidden");
+      document.getElementById("lockscreen").textContent = "Unlocked.";
+    }
+
+    function durationToSeconds(value, unit) {
+      const v = Math.max(1, Number(value || 1));
+      switch (unit) {
+        case "hours": return v * 3600;
+        case "days": return v * 86400;
+        case "months": return v * 2592000;
+        default: return v * 60;
+      }
+    }
+
+    async function adminLogin() {
+      const user = document.getElementById("adminUser").value.trim();
+      const pass = document.getElementById("adminPass").value;
+      const host = normalizeBase(document.getElementById("adminApiHost").value);
+      if (!user || !pass) {
+        setLoginStatus("Enter username and password.", true);
+        return;
+      }
+      if (!host) {
+        setLoginStatus("Enter API host.", true);
+        return;
+      }
+      state.apiHost = host;
+      localStorage.setItem("richAdminHost", host);
+      setLoginStatus("Authenticating...", false);
+      try {
+        const resp = await fetch(`${host}/v1/admin/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: user, password: pass })
+        });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(txt || "Login failed");
+        }
+        const data = await resp.json();
+        state.adminToken = data?.token || "";
+        if (!state.adminToken) throw new Error("No admin token returned");
+        sessionStorage.setItem("richAdminToken", state.adminToken);
+        setLoginStatus("Login successful.", false);
+        showTokenPanel();
+        loadSettings();
+        loadFileList();
+        loadLearningStats();
+      } catch (err) {
+        setLoginStatus(`Login error: ${err.message}`, true);
+      }
+    }
+
+    async function generateToken() {
+      if (!state.apiHost) {
+        state.apiHost = normalizeBase(localStorage.getItem("richAdminHost") || "");
+      }
+      if (!state.adminToken) {
+        state.adminToken = sessionStorage.getItem("richAdminToken") || "";
+      }
+      if (!state.adminToken) {
+        setTokenStatus("Admin session expired. Please log in again.", true);
+        return;
+      }
+      const value = document.getElementById("tokenDuration").value;
+      const unit = document.getElementById("tokenUnit").value;
+      const label = document.getElementById("tokenLabel").value.trim();
+      const durationSeconds = durationToSeconds(value, unit);
+      setTokenStatus("Generating token...", false);
+      try {
+        const resp = await fetch(`${state.apiHost}/v1/admin/tokens`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${state.adminToken}`
+          },
+          body: JSON.stringify({ duration_seconds: durationSeconds, label })
+        });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(txt || "Token generation failed");
+        }
+        const data = await resp.json();
+        const token = data?.token || "";
+        const expiresAt = data?.expires_at ? new Date(data.expires_at * 1000) : null;
+        const display = token
+          ? `${token}\nExpires: ${expiresAt ? expiresAt.toLocaleString() : "unknown"}`
+          : "No token returned.";
+        document.getElementById("tokenOutput").textContent = display;
+        state.currentToken = token;
+        if (expiresAt) startCountdown(expiresAt.getTime());
+        setTokenStatus("Token created.", false);
+      } catch (err) {
+        setTokenStatus(`Error: ${err.message}`, true);
+      }
+    }
+
+    async function copyToken() {
+      const text = document.getElementById("tokenOutput").textContent || "";
+      const token = text.split("\n")[0].trim();
+      if (!token || token.toLowerCase().startsWith("no token")) {
+        setTokenStatus("No token to copy yet.", true);
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(token);
+        setTokenStatus("Token copied to clipboard.", false);
+      } catch {
+        setTokenStatus("Copy failed. Select and copy manually.", true);
+      }
+    }
+
+    async function revokeToken() {
+      if (!state.apiHost) {
+        state.apiHost = normalizeBase(localStorage.getItem("richAdminHost") || "");
+      }
+      if (!state.adminToken) {
+        state.adminToken = sessionStorage.getItem("richAdminToken") || "";
+      }
+      const token = state.currentToken || (document.getElementById("tokenOutput").textContent || "").split("\n")[0].trim();
+      if (!token || token.toLowerCase().startsWith("no token")) {
+        setTokenStatus("No token to revoke.", true);
+        return;
+      }
+      try {
+        const resp = await fetch(`${state.apiHost}/v1/admin/tokens/revoke`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${state.adminToken}`
+          },
+          body: JSON.stringify({ token })
+        });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(txt || "Revoke failed");
+        }
+        document.getElementById("tokenOutput").textContent = "No token generated yet.";
+        state.currentToken = "";
+        if (state.countdownTimer) clearInterval(state.countdownTimer);
+        setCountdown("Expires in: --");
+        setTokenStatus("Token revoked.", false);
+      } catch (err) {
+        setTokenStatus(`Revoke error: ${err.message}`, true);
+      }
+    }
+
+    async function revokeAllTokens() {
+      if (!state.apiHost) {
+        state.apiHost = normalizeBase(localStorage.getItem("richAdminHost") || "");
+      }
+      if (!state.adminToken) {
+        state.adminToken = sessionStorage.getItem("richAdminToken") || "";
+      }
+      if (!state.adminToken) {
+        setTokenStatus("Admin session expired. Please log in again.", true);
+        return;
+      }
+      setTokenStatus("Revoking all tokens...", false);
+      try {
+        const resp = await fetch(`${state.apiHost}/v1/admin/tokens/revoke_all`, {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${state.adminToken}` }
+        });
+        if (!resp.ok) throw new Error("Revoke all failed");
+        const data = await resp.json();
+        document.getElementById("tokenOutput").textContent = "No token generated yet.";
+        setTokenStatus(`All tokens revoked (${data?.count ?? 0}).`, false);
+      } catch (err) {
+        setTokenStatus(`Revoke all error: ${err.message}`, true);
+      }
+    }
+
+    async function runAction(action) {
+      if (!state.apiHost) {
+        state.apiHost = normalizeBase(localStorage.getItem("richAdminHost") || "");
+      }
+      if (!state.adminToken) {
+        state.adminToken = sessionStorage.getItem("richAdminToken") || "";
+      }
+      if (!state.adminToken) {
+        setActionStatus("Admin session expired. Please log in again.", true);
+        return;
+      }
+      setActionStatus("Running action...", false);
+      try {
+        const resp = await fetch(`${state.apiHost}/v1/admin/actions/run`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${state.adminToken}`
+          },
+          body: JSON.stringify({ action })
+        });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(txt || "Action failed");
+        }
+        const data = await resp.json();
+        const msg = data?.status === "ok" ? "Action complete." : "Action error.";
+        setActionStatus(`${msg} (code ${data?.code ?? "?"})`, data?.status !== "ok");
+      } catch (err) {
+        setActionStatus(`Action error: ${err.message}`, true);
+      }
+    }
+
+    async function generateActionToken() {
+      if (!state.apiHost) {
+        state.apiHost = normalizeBase(localStorage.getItem("richAdminHost") || "");
+      }
+      if (!state.adminToken) {
+        state.adminToken = sessionStorage.getItem("richAdminToken") || "";
+      }
+      if (!state.adminToken) {
+        setApproveStatus("Admin session expired. Please log in again.", true);
+        return;
+      }
+      const minutes = Math.max(1, Number(document.getElementById("approveDuration").value || 15));
+      const actionSelect = document.getElementById("approveActions");
+      const selected = Array.from(actionSelect.selectedOptions || []).map((opt) => opt.value);
+      setApproveStatus("Generating action token...", false);
+      try {
+        const resp = await fetch(`${state.apiHost}/v1/admin/actions/approve`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${state.adminToken}`
+          },
+          body: JSON.stringify({
+            duration_seconds: minutes * 60,
+            actions: selected
+          })
+        });
+        if (!resp.ok) throw new Error("Action approve failed");
+        const data = await resp.json();
+        const token = data?.token || "";
+        document.getElementById("approveTokenOutput").textContent = token || "No action token returned.";
+        if (token) localStorage.setItem("richActionToken", token);
+        setApproveStatus("Action token created.", false);
+      } catch (err) {
+        setApproveStatus(`Approval error: ${err.message}`, true);
+      }
+    }
+
+    async function copyActionToken() {
+      const token = (document.getElementById("approveTokenOutput").textContent || "").trim();
+      if (!token || token.toLowerCase().startsWith("no action")) {
+        setApproveStatus("No action token to copy.", true);
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(token);
+        setApproveStatus("Action token copied.", false);
+      } catch {
+        setApproveStatus("Copy failed. Select and copy manually.", true);
+      }
+    }
+
+    async function loadSettings() {
+      if (!state.apiHost) {
+        state.apiHost = normalizeBase(localStorage.getItem("richAdminHost") || "");
+      }
+      if (!state.adminToken) {
+        state.adminToken = sessionStorage.getItem("richAdminToken") || "";
+      }
+      if (!state.adminToken) return;
+      setSettingsStatus("Loading settings...", false);
+      try {
+        const resp = await fetch(`${state.apiHost}/v1/admin/settings`, {
+          method: "GET",
+          headers: { "Authorization": `Bearer ${state.adminToken}` }
+        });
+        if (!resp.ok) throw new Error("Settings load failed");
+        const data = await resp.json();
+        document.getElementById("settingLearningEnabled").value = data?.learning_enabled ? "true" : "false";
+        document.getElementById("settingLearningAuto").value = data?.learning_auto_update ? "true" : "false";
+        setSettingsStatus("Settings loaded.", false);
+      } catch (err) {
+        setSettingsStatus(`Settings error: ${err.message}`, true);
+      }
+    }
+
+    async function loadLearningStats() {
+      if (!state.apiHost) {
+        state.apiHost = normalizeBase(localStorage.getItem("richAdminHost") || "");
+      }
+      if (!state.adminToken) {
+        state.adminToken = sessionStorage.getItem("richAdminToken") || "";
+      }
+      if (!state.adminToken) return;
+      setSettingsStatus("Loading learning stats...", false);
+      try {
+        const resp = await fetch(`${state.apiHost}/v1/admin/learning/stats`, {
+          method: "GET",
+          headers: { "Authorization": `Bearer ${state.adminToken}` }
+        });
+        if (!resp.ok) throw new Error("Stats load failed");
+        const data = await resp.json();
+        const box = document.getElementById("learningStatsBox");
+        box.textContent = JSON.stringify(data, null, 2);
+        setSettingsStatus("Learning stats loaded.", false);
+      } catch (err) {
+        setSettingsStatus(`Stats error: ${err.message}`, true);
+      }
+    }
+
+    async function saveSettings() {
+      if (!state.apiHost) {
+        state.apiHost = normalizeBase(localStorage.getItem("richAdminHost") || "");
+      }
+      if (!state.adminToken) {
+        state.adminToken = sessionStorage.getItem("richAdminToken") || "";
+      }
+      if (!state.adminToken) {
+        setSettingsStatus("Admin session expired. Please log in again.", true);
+        return;
+      }
+      const enabled = document.getElementById("settingLearningEnabled").value === "true";
+      const auto = document.getElementById("settingLearningAuto").value === "true";
+      setSettingsStatus("Saving settings...", false);
+      try {
+        const resp = await fetch(`${state.apiHost}/v1/admin/settings`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${state.adminToken}`
+          },
+          body: JSON.stringify({
+            learning_enabled: enabled,
+            learning_auto_update: auto
+          })
+        });
+        if (!resp.ok) throw new Error("Settings update failed");
+        setSettingsStatus("Settings updated.", false);
+      } catch (err) {
+        setSettingsStatus(`Settings error: ${err.message}`, true);
+      }
+    }
+
+    async function loadFileList() {
+      if (!state.apiHost) {
+        state.apiHost = normalizeBase(localStorage.getItem("richAdminHost") || "");
+      }
+      if (!state.adminToken) {
+        state.adminToken = sessionStorage.getItem("richAdminToken") || "";
+      }
+      if (!state.adminToken) return;
+      setFileStatus("Loading file list...", false);
+      try {
+        const resp = await fetch(`${state.apiHost}/v1/admin/files`, {
+          method: "GET",
+          headers: { "Authorization": `Bearer ${state.adminToken}` }
+        });
+        if (!resp.ok) throw new Error("File list load failed");
+        const data = await resp.json();
+        const select = document.getElementById("fileSelect");
+        select.innerHTML = "";
+        (data?.files || []).forEach((f) => {
+          const opt = document.createElement("option");
+          opt.value = f.id;
+          opt.textContent = f.path;
+          select.appendChild(opt);
+        });
+        setFileStatus("File list loaded.", false);
+      } catch (err) {
+        setFileStatus(`Files error: ${err.message}`, true);
+      }
+    }
+
+    async function loadFile() {
+      if (!state.apiHost) {
+        state.apiHost = normalizeBase(localStorage.getItem("richAdminHost") || "");
+      }
+      if (!state.adminToken) {
+        state.adminToken = sessionStorage.getItem("richAdminToken") || "";
+      }
+      if (!state.adminToken) {
+        setFileStatus("Admin session expired. Please log in again.", true);
+        return;
+      }
+      const fileId = document.getElementById("fileSelect").value;
+      if (!fileId) {
+        setFileStatus("Select a file first.", true);
+        return;
+      }
+      setFileStatus("Loading file...", false);
+      try {
+        const resp = await fetch(`${state.apiHost}/v1/admin/files/${fileId}`, {
+          method: "GET",
+          headers: { "Authorization": `Bearer ${state.adminToken}` }
+        });
+        if (!resp.ok) throw new Error("File load failed");
+        const data = await resp.json();
+        document.getElementById("fileEditor").value = data?.content || "";
+        setFileStatus("File loaded.", false);
+      } catch (err) {
+        setFileStatus(`Files error: ${err.message}`, true);
+      }
+    }
+
+    async function saveFile() {
+      if (!state.apiHost) {
+        state.apiHost = normalizeBase(localStorage.getItem("richAdminHost") || "");
+      }
+      if (!state.adminToken) {
+        state.adminToken = sessionStorage.getItem("richAdminToken") || "";
+      }
+      if (!state.adminToken) {
+        setFileStatus("Admin session expired. Please log in again.", true);
+        return;
+      }
+      const fileId = document.getElementById("fileSelect").value;
+      const content = document.getElementById("fileEditor").value || "";
+      if (!fileId) {
+        setFileStatus("Select a file first.", true);
+        return;
+      }
+      setFileStatus("Saving file...", false);
+      try {
+        const resp = await fetch(`${state.apiHost}/v1/admin/files/${fileId}`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${state.adminToken}`
+          },
+          body: JSON.stringify({ content })
+        });
+        if (!resp.ok) throw new Error("File save failed");
+        setFileStatus("File saved.", false);
+      } catch (err) {
+        setFileStatus(`Files error: ${err.message}`, true);
+      }
+    }
+
+    async function connectTelegram() {
+      if (!state.apiHost) {
+        state.apiHost = normalizeBase(localStorage.getItem("richAdminHost") || "");
+      }
+      if (!state.adminToken) {
+        state.adminToken = sessionStorage.getItem("richAdminToken") || "";
+      }
+      if (!state.adminToken) {
+        setTelegramStatus("Admin session expired. Please log in again.", true);
+        return;
+      }
+      const botToken = document.getElementById("telegramBotToken").value.trim();
+      const chatIds = document.getElementById("telegramChatIds").value.trim();
+      const parseMode = document.getElementById("telegramParseMode").value;
+      const requireKey = document.getElementById("telegramRequireKey").value === "true";
+      if (!botToken) {
+        setTelegramStatus("Bot token is required.", true);
+        return;
+      }
+      setTelegramStatus("Connecting Telegram...", false);
+      try {
+        const resp = await fetch(`${state.apiHost}/v1/admin/telegram/connect`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${state.adminToken}`
+          },
+          body: JSON.stringify({
+            bot_token: botToken,
+            allowed_chat_ids: chatIds,
+            parse_mode: parseMode,
+            require_api_key: requireKey
+          })
+        });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(txt || "Telegram connect failed");
+        }
+        const data = await resp.json();
+        localStorage.setItem("richTelegramBotToken", botToken);
+        localStorage.setItem("richTelegramChatIds", chatIds);
+        localStorage.setItem("richTelegramParseMode", parseMode);
+        localStorage.setItem("richTelegramRequireKey", requireKey ? "true" : "false");
+        setTelegramStatus(data?.status || "Telegram connected.", false);
+      } catch (err) {
+        setTelegramStatus(`Telegram error: ${err.message}`, true);
+      }
+    }
+
+    async function explainLoss() {
+      if (!state.apiHost) {
+        state.apiHost = normalizeBase(localStorage.getItem("richAdminHost") || "");
+      }
+      if (!state.adminToken) {
+        state.adminToken = sessionStorage.getItem("richAdminToken") || "";
+      }
+      if (!state.adminToken) {
+        setLossStatus("Admin session expired. Please log in again.", true);
+        return;
+      }
+      const persona = document.getElementById("lossPersona").value || "RICH";
+      const model = document.getElementById("lossModel").value.trim();
+      const tradeLog = document.getElementById("lossTrade").value.trim();
+      const shapValues = document.getElementById("lossShap").value.trim();
+      const notes = document.getElementById("lossNotes").value.trim();
+      if (!tradeLog && !shapValues && !notes) {
+        setLossStatus("Paste a trade log, SHAP values, or notes first.", true);
+        return;
+      }
+      setLossStatus("Explaining loss...", false);
+      try {
+        const resp = await fetch(`${state.apiHost}/v1/admin/trades/explain`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${state.adminToken}`
+          },
+          body: JSON.stringify({
+            persona,
+            trade_log: tradeLog || null,
+            shap_values: shapValues || null,
+            notes: notes || null,
+            model: model || null
+          })
+        });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(txt || "Explain failed");
+        }
+        const data = await resp.json();
+        const output = data?.explanation || "No explanation returned.";
+        document.getElementById("lossOutput").textContent = output;
+        setLossStatus("Explanation ready.", false);
+      } catch (err) {
+        setLossStatus(`Explain error: ${err.message}`, true);
+      }
+    }
+
+    async function copyLossExplanation() {
+      const text = document.getElementById("lossOutput").textContent || "";
+      if (!text || text.toLowerCase().startsWith("no explanation")) {
+        setLossStatus("No explanation to copy yet.", true);
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        setLossStatus("Explanation copied.", false);
+      } catch {
+        setLossStatus("Copy failed. Select and copy manually.", true);
+      }
+    }
+
+    function clearLogin() {
+      document.getElementById("adminUser").value = "";
+      document.getElementById("adminPass").value = "";
+      setLoginStatus("Waiting for login.", false);
+    }
+
+    document.getElementById("adminLoginBtn").addEventListener("click", adminLogin);
+    document.getElementById("adminClearBtn").addEventListener("click", clearLogin);
+    document.getElementById("tokenGenBtn").addEventListener("click", generateToken);
+    document.getElementById("tokenCopyBtn").addEventListener("click", copyToken);
+    document.getElementById("tokenRevokeBtn").addEventListener("click", revokeToken);
+    document.getElementById("tokenRevokeAllBtn").addEventListener("click", revokeAllTokens);
+    document.getElementById("actionStartServer").addEventListener("click", () => runAction("start_server"));
+    document.getElementById("actionStopServer").addEventListener("click", () => runAction("stop_server"));
+    document.getElementById("actionStartTunnel").addEventListener("click", () => runAction("start_tunnel"));
+    document.getElementById("actionStopAll").addEventListener("click", () => runAction("stop_all"));
+    document.getElementById("actionStartMt5").addEventListener("click", () => runAction("start_mt5"));
+    document.getElementById("actionStopMt5").addEventListener("click", () => runAction("stop_mt5"));
+    document.getElementById("actionStartBacktest").addEventListener("click", () => runAction("start_backtest"));
+    document.getElementById("actionStopBacktest").addEventListener("click", () => runAction("stop_backtest"));
+    document.getElementById("approveActionBtn").addEventListener("click", generateActionToken);
+    document.getElementById("copyActionTokenBtn").addEventListener("click", copyActionToken);
+    document.getElementById("saveSettingsBtn").addEventListener("click", saveSettings);
+    document.getElementById("refreshStatsBtn").addEventListener("click", loadLearningStats);
+    document.getElementById("loadFileBtn").addEventListener("click", loadFile);
+    document.getElementById("saveFileBtn").addEventListener("click", saveFile);
+    document.getElementById("lossExplainBtn").addEventListener("click", explainLoss);
+    document.getElementById("lossCopyBtn").addEventListener("click", copyLossExplanation);
+    document.getElementById("telegramConnectBtn").addEventListener("click", connectTelegram);
+
+    const savedHost = localStorage.getItem("richAdminHost") || "";
+    if (savedHost) {
+      document.getElementById("adminApiHost").value = savedHost;
+    } else if (window.location.hostname) {
+      document.getElementById("adminApiHost").value = window.location.hostname + ":8000";
+    }
+
+    const savedBotToken = localStorage.getItem("richTelegramBotToken") || "";
+    const savedChatIds = localStorage.getItem("richTelegramChatIds") || "";
+    const savedParseMode = localStorage.getItem("richTelegramParseMode") || "Markdown";
+    const savedRequire = localStorage.getItem("richTelegramRequireKey") || "true";
+    if (savedBotToken) document.getElementById("telegramBotToken").value = savedBotToken;
+    if (savedChatIds) document.getElementById("telegramChatIds").value = savedChatIds;
+    document.getElementById("telegramParseMode").value = savedParseMode;
+    document.getElementById("telegramRequireKey").value = savedRequire;
+  </script>
+</body>
+</html>
